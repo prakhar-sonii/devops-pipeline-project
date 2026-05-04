@@ -21,7 +21,6 @@ on:
 env:
   IMAGE_NAME: student-app
   DOCKER_HUB_REPO: ${{ secrets.DOCKER_HUB_USERNAME }}/student-app
-  GHCR_REPO: ghcr.io/${{ github.repository_owner }}/student-app
 
 # ============================================================
 # JOBS
@@ -31,22 +30,19 @@ jobs:
   # ---- JOB 1: Build & Test ----
   build-and-test:
     name: Maven Build and Test
-    runs-on: ubuntu-latest   # GitHub-hosted runner (Unit V)
+    runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code from GitHub
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # Step 2: Set up Java 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # Step 3: Cache Maven dependencies (Unit V: caching for faster builds)
-      # Cache key is based on pom.xml hash — only re-downloads when pom.xml changes
+      # Cache Maven dependencies — faster builds (Unit V)
       - name: Cache Maven dependencies
         uses: actions/cache@v3
         with:
@@ -55,15 +51,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      # Step 4: Run Maven build lifecycle (Unit IV phases)
       - name: Build with Maven (validate → compile → test → package)
         run: mvn clean package -B
 
-      # Step 5: Run unit tests explicitly and show results
       - name: Run unit tests
         run: mvn test -B
 
-      # Step 6: Upload test reports as artifacts (Unit V: artifacts)
       - name: Upload Surefire test reports
         uses: actions/upload-artifact@v4
         if: always()
@@ -72,7 +65,6 @@ jobs:
           path: target/surefire-reports/
           retention-days: 7
 
-      # Step 7: Upload the built JAR as pipeline artifact
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
@@ -80,62 +72,40 @@ jobs:
           path: target/student-app-*.jar
           retention-days: 7
 
-  # ---- JOB 2: Docker Build & Push ----
+  # ---- JOB 2: Docker Build & Push to Docker Hub only ----
   docker-build-push:
     name: Docker Build and Push
     runs-on: ubuntu-latest
-    needs: build-and-test   # Only runs if build-and-test succeeds
-    if: github.ref == 'refs/heads/main'   # Only on main branch
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # Set up Docker Buildx (supports multi-platform builds)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Log in to Docker Hub using GitHub Secrets (Unit V: secrets management)
+      # Login to Docker Hub using secrets (Unit V: secrets management)
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      # Log in to GitHub Container Registry (GHCR)
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Generate image tags: version tag + latest
-      - name: Extract metadata for Docker tags
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.DOCKER_HUB_REPO }}
-            ${{ env.GHCR_REPO }}
-          tags: |
-            type=raw,value=1.0.0
-            type=raw,value=latest
-            type=sha,prefix=sha-
-
-      # Build Docker image and push to both registries
+      # Build and push to Docker Hub only
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # Use GitHub Actions cache for faster builds (Unit V: caching)
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/student-app:1.0.0
+            ${{ secrets.DOCKER_HUB_USERNAME }}/student-app:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ---- JOB 3: Security Scan (DevSecOps Bonus) ----
+  # ---- JOB 3: Trivy Security Scan (DevSecOps Bonus) ----
   security-scan:
     name: Trivy Security Scan
     runs-on: ubuntu-latest
@@ -146,33 +116,22 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # Run Trivy vulnerability scanner on the built image
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.DOCKER_HUB_REPO }}:latest
+          image-ref: ${{ secrets.DOCKER_HUB_USERNAME }}/student-app:latest
           format: 'table'
-          exit-code: '0'          # Don't fail pipeline — just report
+          exit-code: '0'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
 
-      # Upload Trivy results as artifact
-      - name: Upload Trivy scan results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: trivy-scan-results
-          path: trivy-results.sarif
-          retention-days: 7
-
-  # ---- JOB 4: Matrix Strategy Demo (Unit V) ----
-  # Demonstrates multi-platform build testing
+  # ---- JOB 4: Matrix Strategy (Unit V) ----
   multi-platform-test:
     name: Multi-Platform Test (Java ${{ matrix.java }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [17, 21]    # Test on multiple Java versions
+        java: [17, 21]
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK ${{ matrix.java }}
