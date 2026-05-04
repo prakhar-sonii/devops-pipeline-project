@@ -1,0 +1,91 @@
+# ============================================================
+# docker-compose.yml — Multi-Container Deployment
+# INT332 DevOps Pipeline Project — Unit III
+# Services: student-app (backend) + mysql (database) + nginx (frontend proxy)
+# ============================================================
+
+version: '3.8'
+
+services:
+
+  # ---- SERVICE 1: MySQL Database ----
+  mysql-db:
+    image: mysql:8.0
+    container_name: student-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: studentdb
+      MYSQL_USER: studentuser
+      MYSQL_PASSWORD: studentpass
+    ports:
+      - "3306:3306"
+    volumes:
+      # Named volume — persists DB data across container restarts (Unit II: volumes)
+      - mysql-data:/var/lib/mysql
+    networks:
+      - student-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ---- SERVICE 2: Student App (Backend) ----
+  student-app:
+    # Build from local Dockerfile OR pull from registry
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: student-app:1.0.0
+    container_name: student-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Environment variables injected at runtime (Unit III: env vars)
+      SPRING_APPLICATION_NAME: student-app
+      SERVER_PORT: 8080
+    networks:
+      - student-network
+    # Service dependency — app starts only AFTER mysql is healthy (Unit III)
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/students/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ---- SERVICE 3: Nginx (Reverse Proxy / Frontend) ----
+  nginx:
+    image: nginx:alpine
+    container_name: student-nginx
+    restart: unless-stopped
+    ports:
+      # Nginx listens on port 80 and proxies to student-app:8080
+      - "80:80"
+    volumes:
+      # Bind mount for nginx config (Unit II: bind mounts)
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - student-network
+    depends_on:
+      student-app:
+        condition: service_healthy
+
+# ---- NETWORKS (Unit III: Docker Compose networks) ----
+# Custom bridge network — containers communicate by service name
+networks:
+  student-network:
+    driver: bridge
+    name: student-network
+
+# ---- VOLUMES (Unit II: Named volumes) ----
+# Named volume managed by Docker — survives container removal
+volumes:
+  mysql-data:
+    name: student-mysql-data

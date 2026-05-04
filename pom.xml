@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ===================== PROJECT IDENTITY ===================== -->
+    <groupId>com.devops</groupId>
+    <artifactId>student-app</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>student-app</name>
+    <description>Student Management System - INT332 DevOps Pipeline Project</description>
+
+    <!-- ===================== SPRING BOOT PARENT POM ===================== -->
+    <!-- This is the Parent POM concept from Unit IV -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.0</version>
+        <relativePath/>
+    </parent>
+
+    <!-- ===================== PROPERTIES ===================== -->
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Docker image name for registry push -->
+        <docker.image.name>student-app</docker.image.name>
+        <docker.image.tag>${project.version}</docker.image.tag>
+    </properties>
+
+    <!-- ===================== DEPENDENCIES ===================== -->
+    <!-- Transitive dependencies are managed by Spring Boot Parent -->
+    <dependencies>
+
+        <!-- Spring Boot Web — provides REST API support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <!-- Scope: compile (default) — available at all lifecycle phases -->
+        </dependency>
+
+        <!-- Spring Boot Test — for Unit IV Surefire testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <!-- Scope: test — only used during the test phase, not packaged -->
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JUnit 5 — explicitly declared for Unit IV test demonstrations -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <!-- ===================== BUILD & PLUGINS (Unit IV) ===================== -->
+    <build>
+        <plugins>
+
+            <!-- 1. Spring Boot Maven Plugin — packages as executable JAR -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.devops.studentapp.StudentAppApplication</mainClass>
+                </configuration>
+            </plugin>
+
+            <!-- 2. Maven Compiler Plugin — compiles Java 17 source -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- 3. Maven Surefire Plugin — runs JUnit tests (Unit IV) -->
+            <!-- Triggered during: mvn test -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.2</version>
+                <configuration>
+                    <!-- Generate test reports in target/surefire-reports -->
+                    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+
+            <!-- 4. Maven Shade Plugin — creates Uber JAR (Unit IV) -->
+            <!-- An Uber JAR bundles all dependencies into one fat JAR -->
+            <!-- Triggered during: mvn package -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.devops.studentapp.StudentAppApplication</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.handlers</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.factories</resource>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
