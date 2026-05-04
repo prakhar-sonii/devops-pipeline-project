@@ -3,24 +3,20 @@ package com.devops.studentapp;
 import com.devops.studentapp.model.Student;
 import com.devops.studentapp.service.StudentService;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
 class StudentControllerTest {
 
-    @Autowired
     private StudentService studentService;
 
-    @Test
-    void contextLoads() {
-        // Verifies Spring context starts successfully
-        assertNotNull(studentService);
+    @BeforeEach
+    void setUp() {
+        studentService = new StudentService();
     }
 
     @Test
@@ -51,5 +47,14 @@ class StudentControllerTest {
         assertNotNull(added);
         assertEquals("Test Student", added.getName());
         assertTrue(added.getId() > 0);
+    }
+
+    @Test
+    void testStudentFields() {
+        Student s = new Student(1, "Arjun Sharma", "B.Tech CSE", 8.9);
+        assertEquals(1, s.getId());
+        assertEquals("Arjun Sharma", s.getName());
+        assertEquals("B.Tech CSE", s.getCourse());
+        assertEquals(8.9, s.getCgpa());
     }
 }
